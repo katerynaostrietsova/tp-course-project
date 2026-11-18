@@ -1,0 +1,64 @@
+// БНФ мови SIPL (Нікітченко, розділ 1). Аліаси -> np1, ns1... це назви правил з посібника.
+// Пріоритети: * сильніше за + і -, порівняння сильніші за ¬, ¬ сильніше за ∨,
+// ; має найнижчий пріоритет (if b then S1 else S2 ; S3  =  (if ...) ; S3).
+
+start: program
+
+program: BEGIN stmt END                          -> np1
+
+?stmt: simple
+     | stmt SEMI simple                          -> ns2
+
+?simple: VAR ASSIGN aexp                         -> ns1
+       | IF bexp THEN simple ELSE simple         -> ns3
+       | WHILE bexp DO simple                    -> ns4
+       | BEGIN stmt END                          -> ns5
+       | SKIP                                    -> ns6
+
+?aexp: aterm
+     | aexp PLUS aterm                           -> na3
+     | aexp MINUS aterm                          -> na4
+
+?aterm: afactor
+      | aterm TIMES afactor                      -> na5
+
+?afactor: NUMBER                                 -> na1
+        | VAR                                    -> na2
+        | LPAR aexp RPAR                         -> na6
+
+?bexp: bterm
+     | bexp (OR | OR_W) bterm                    -> nb3
+
+?bterm: batom
+      | (NOT | NOT_W) bterm                      -> nb4
+
+?batom: aexp EQ aexp                             -> nb1
+      | aexp GT aexp                             -> nb2
+      | LPAR bexp RPAR                           -> nb5
+
+BEGIN: "begin"
+END: "end"
+IF: "if"
+THEN: "then"
+ELSE: "else"
+WHILE: "while"
+DO: "do"
+SKIP: "skip"
+OR: "∨"
+OR_W: "or"
+NOT: "¬"
+NOT_W: "not"
+ASSIGN: ":="
+SEMI: ";"
+PLUS: "+"
+MINUS: "-" | "–"
+TIMES: "*" | "×"
+EQ: "="
+GT: ">"
+LPAR: "("
+RPAR: ")"
+NUMBER: /[0-9]+/
+VAR: /[A-Za-z][A-Za-z0-9_]*/
+
+%import common.WS
+%ignore WS
