@@ -6,6 +6,7 @@ from .formal.grammar import GrammarError, language_up_to, load_grammar, parse_wo
 from .formal.trace import Trace
 from .formal import transforms
 from .formal.derivations import analyze
+from .formal import equations as eq
 from .sipl_tree import SiplSyntaxError, load_tree
 from .visualization import tree as tv
 
@@ -86,6 +87,52 @@ def cmd_derive(args):
     return 0
 
 
+def cmd_eq(args):
+    system = eq.load_system(args.file)
+    if args.action == "grammar":
+        _write(str(eq.to_grammar(system)), args.out)
+        return 0
+    if args.action == "lang":
+        g = eq.to_grammar(system)
+        pred = eq.make_predicate(args.lang)
+        alphabet = set(args.alphabet) if args.alphabet else None
+        r = eq.compare_with_language(g, pred, args.max_len, alphabet)
+        lines = [f"Граматика:\n{g}", ""]
+        if r["ok"]:
+            lines.append(f"На словах довжини <= {args.max_len} граматика породжує саме задану мову")
+        else:
+            lines.append(f"Зайві слова (є в граматиці, але не задовольняють умову): {eq.lang_str(r['extra'])}")
+            lines.append(f"Пропущені слова (задовольняють умову, але не породжуються): {eq.lang_str(r['missing'])}")
+        _write("\n".join(lines), args.out)
+        return 0 if r["ok"] else 2
+
+    approx = eq.approximations(system, args.max_len, args.iterations)
+    last = approx[-1]
+    if args.format == "json":
+        data = {"system": str(system).splitlines(),
+                "approximations": [{x: sorted(r[x], key=lambda w: (len(w), w)) for x in system.order}
+                                   for r in approx]}
+        _write(json.dumps(data, ensure_ascii=False, indent=2), args.out)
+        return 0
+    lines = ["Система рівнянь:", str(system), "",
+             f"Послідовні наближення (слова довжини <= {args.max_len}):",
+             eq.approx_table(system, approx, args.show)]
+    if len(approx) <= args.iterations:
+        lines.append(f"R({len(approx)}) = R({len(approx) - 1}), наближення стабілізувались")
+    lines.append(f"Перевірка R = ϕ(R): {'так' if eq.is_solution(system, last, args.max_len) else 'ні'}")
+    if args.action == "compare":
+        c = eq.compare_with_grammar(system, args.max_len)
+        lines.append("")
+        lines.append(f"Слова граматики (перевірка CYK): {eq.lang_str(c['grammar'], args.show)}")
+        if c["equal"]:
+            lines.append(f"Розв'язок збігається з мовою граматики на словах довжини <= {args.max_len}")
+        else:
+            lines.append(f"Не збігаються! лише в наближенні: {eq.lang_str(c['only_approx'])}, "
+                         f"лише в граматиці: {eq.lang_str(c['only_grammar'])}")
+    _write("\n".join(lines), args.out)
+    return 0
+
+
 def cmd_tree(args):
     node = load_tree(args.file)
     _write(_export_tree(node, args.format), args.out)
@@ -114,6 +161,18 @@ def build_arg_parser():
     d.add_argument("--format", choices=["text", "json", "dot", "svg"], default="text")
     d.add_argument("--out")
     d.set_defaults(func=cmd_derive)
+
+    e = sub.add_parser("eq", help="рівняння в алгебрі мов (FORM-02)")
+    e.add_argument("action", choices=["solve", "compare", "grammar", "lang"])
+    e.add_argument("file", help="файл з рівняннями або з граматикою")
+    e.add_argument("--max-len", type=int, default=6, help="макс. довжина слів")
+    e.add_argument("--iterations", type=int, default=30, help="макс. кількість наближень")
+    e.add_argument("--show", type=int, default=10, help="скільки слів показувати")
+    e.add_argument("--lang", help="для lang: умова на слово w, напр. \"w.count('a') == w.count('b')\"")
+    e.add_argument("--alphabet", help="для lang: алфавіт, напр. ab")
+    e.add_argument("--format", choices=["text", "json"], default="text")
+    e.add_argument("--out")
+    e.set_defaults(func=cmd_eq)
 
     t = sub.add_parser("tree", help="дерево виводу SIPL-програми (VIS-01)")
     t.add_argument("file", help="файл .sipl")

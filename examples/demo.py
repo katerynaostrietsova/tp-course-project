@@ -19,5 +19,8 @@ main(["cfg", "cnf", str(G / "ex4_21.txt"), "--explain"])
 print("\n=== FORM-04: виводи слова a-a-a ===")
 main(["derive", str(G / "minus.txt"), "a-a-a"])
 
+print("\n=== FORM-02: рівняння S = {ε} ∪ {a}S{b} ===")
+main(["eq", "solve", str(ROOT / "examples" / "equations" / "ex4_30.txt")])
+
 print("\n=== VIS-01: дерево виводу програми GCD ===")
 main(["tree", str(P / "gcd.sipl")])
