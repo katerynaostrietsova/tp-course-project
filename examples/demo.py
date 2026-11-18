@@ -22,5 +22,9 @@ main(["derive", str(G / "minus.txt"), "a-a-a"])
 print("\n=== FORM-02: рівняння S = {ε} ∪ {a}S{b} ===")
 main(["eq", "solve", str(ROOT / "examples" / "equations" / "ex4_30.txt")])
 
+print("\n=== FORM-03: лема про накачку для a^k b^k c^k ===")
+main(["pump", "--lang", "w == 'a'*(len(w)//3) + 'b'*(len(w)//3) + 'c'*(len(w)//3)",
+      "--k", "2", "--word", "a^k b^k c^k"])
+
 print("\n=== VIS-01: дерево виводу програми GCD ===")
 main(["tree", str(P / "gcd.sipl")])

@@ -7,6 +7,7 @@ from .formal.trace import Trace
 from .formal import transforms
 from .formal.derivations import analyze
 from .formal import equations as eq
+from .formal import pumping
 from .sipl_tree import SiplSyntaxError, load_tree
 from .visualization import tree as tv
 
@@ -133,6 +134,31 @@ def cmd_eq(args):
     return 0
 
 
+def cmd_pump(args):
+    if bool(args.lang) == bool(args.grammar):
+        print("помилка: задайте мову через --lang або --grammar", file=sys.stderr)
+        return 1
+    if args.grammar:
+        in_lang = pumping.grammar_membership(load_grammar(args.grammar))
+    else:
+        in_lang = eq.make_predicate(args.lang)
+    t = pumping.expand_word(args.word, args.k)
+
+    if args.split:
+        sp = pumping.parse_split(t, args.split)
+        r = pumping.check_split(sp, in_lang, args.max_i)
+        _write(pumping.single_text(r, args.k), args.out)
+        return 0
+
+    res = pumping.explore(t, args.k, in_lang, args.max_i)
+    if args.html:
+        with open(args.html, "w", encoding="utf-8") as f:
+            f.write(pumping.report_html(res))
+        print(f"таблицю збережено у {args.html}")
+    _write(pumping.report_text(res, None if args.all else 20), args.out)
+    return 0
+
+
 def cmd_tree(args):
     node = load_tree(args.file)
     _write(_export_tree(node, args.format), args.out)
@@ -173,6 +199,18 @@ def build_arg_parser():
     e.add_argument("--format", choices=["text", "json"], default="text")
     e.add_argument("--out")
     e.set_defaults(func=cmd_eq)
+
+    pm = sub.add_parser("pump", help="лема про накачку (FORM-03)")
+    pm.add_argument("--lang", help="умова на слово w, напр. \"w.count('a') == w.count('b')\"")
+    pm.add_argument("--grammar", help="або файл з граматикою мови")
+    pm.add_argument("--k", type=int, required=True, help="стала k з леми")
+    pm.add_argument("--word", required=True, help="слово t, можна шаблоном: a^k b^k c^k")
+    pm.add_argument("--max-i", type=int, default=3, help="перевіряти i = 0..max_i")
+    pm.add_argument("--split", help="перевірити один розклад u|t1|x|t2|v, напр. aa|a||b|bcc")
+    pm.add_argument("--all", action="store_true", help="показати всі розклади")
+    pm.add_argument("--html", help="зберегти кольорову таблицю у html-файл")
+    pm.add_argument("--out")
+    pm.set_defaults(func=cmd_pump)
 
     t = sub.add_parser("tree", help="дерево виводу SIPL-програми (VIS-01)")
     t.add_argument("file", help="файл .sipl")
